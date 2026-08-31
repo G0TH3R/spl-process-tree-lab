@@ -2,6 +2,11 @@
 
 A standalone Splunk Classic Simple XML app for bounded Windows process-tree investigation across selectable indexes, sourcetypes, sources, and event codes.
 
+## Author
+
+**G0TH3R** — CTF Lead, Cloud Village<br>
+GitHub: [@G0TH3R](https://github.com/G0TH3R)
+
 Process Tree Lab supports:
 
 - Sysmon EventCode 1

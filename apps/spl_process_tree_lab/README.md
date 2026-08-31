@@ -2,6 +2,11 @@
 
 A compact Splunk Classic dashboard for bounded process-relationship analysis across selectable Splunk indexes and Windows process-event schemas. It defaults to the imported BOTS v3 Sysmon data.
 
+## Author
+
+**G0TH3R** — CTF Lead, Cloud Village<br>
+GitHub: [@G0TH3R](https://github.com/G0TH3R)
+
 Version 1.0.4 adds cascading index, sourcetype, source, and EventCode selectors; Sysmon EventCode 1 and Windows Security 4688 presets; validated custom process-field mapping; and a collapsible optional filter-SPL editor. Selector resets bind after Simple XML readiness so defaults initialize cleanly, while later upstream changes clear stale downstream values. Sourcetype and source choices use bounded search-time discovery, and the selected schema preset is applied after readiness so URL-prefilled Security 4688 searches normalize correctly. Custom-command panels remain gated and output bounded. The browser stores filter text and collapse state only for the active tab and never stores result rows.
 
 ## Views
