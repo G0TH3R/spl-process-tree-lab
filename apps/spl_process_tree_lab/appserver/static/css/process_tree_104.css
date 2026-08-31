@@ -1,0 +1,122 @@
+.pt-editor-shell {
+  background: #1f2229;
+  border: 1px solid #4a4f59;
+  border-radius: 3px;
+  padding: 12px;
+}
+
+.pt-editor-label {
+  color: #f2f4f5;
+  display: block;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.pt-editor-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.pt-editor-header .pt-editor-label {
+  margin-bottom: 0;
+}
+
+.pt-button-compact {
+  padding: 3px 9px;
+}
+
+#process-tree-filter-body {
+  margin-top: 8px;
+}
+
+#process-tree-filter-body[hidden] {
+  display: none;
+}
+
+#process-tree-base-spl {
+  background: #111318;
+  border: 1px solid #68707c;
+  border-radius: 3px;
+  box-sizing: border-box;
+  color: #f2f4f5;
+  font-family: Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  min-height: 118px;
+  padding: 9px;
+  resize: vertical;
+  width: 100%;
+}
+
+.pt-editor-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.pt-button {
+  background: #303540;
+  border: 1px solid #68707c;
+  border-radius: 3px;
+  color: #f2f4f5;
+  cursor: pointer;
+  font: inherit;
+  padding: 5px 12px;
+}
+
+.pt-button-primary {
+  background: #5cc05c;
+  border-color: #5cc05c;
+  color: #111318;
+  font-weight: 600;
+}
+
+.pt-button:focus,
+#process-tree-base-spl:focus {
+  outline: 2px solid #7bb9ff;
+  outline-offset: 1px;
+}
+
+.pt-editor-status {
+  color: #c3cbd4;
+  font-size: 12px;
+}
+
+.pt-editor-status.pt-error {
+  color: #ff8f87;
+}
+
+.pt-editor-status.pt-ok {
+  color: #9ee6a2;
+}
+
+#pstree_selected_panel .panel-body,
+#pstree_content_hunt_panel .panel-body {
+  max-height: 520px;
+  overflow-x: auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.pt-custom-mapping {
+  display: grid;
+  gap: 6px 12px;
+  grid-template-columns: minmax(180px, 260px) minmax(240px, 1fr);
+}
+
+.pt-custom-mapping input {
+  background: #111318;
+  border: 1px solid #68707c;
+  border-radius: 3px;
+  color: #f2f4f5;
+  font-family: Menlo, Monaco, Consolas, monospace;
+  padding: 6px 8px;
+}
+
+.pt-custom-mapping .pt-editor-actions {
+  grid-column: 1 / -1;
+}

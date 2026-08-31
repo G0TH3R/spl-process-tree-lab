@@ -1,0 +1,400 @@
+<form version="1.1" theme="dark" script="js/process_tree_104.js" stylesheet="css/process_tree_104.css">
+  <label>Process Tree Lab</label>
+  <description>Select a process-event data source and schema, apply optional filter SPL, and investigate process relationships.</description>
+  <init>
+    <set token="filter_spl">| search *</set>
+    <set token="pt_parent_image_field">ParentImage</set>
+    <set token="pt_image_field">Image</set>
+    <set token="pt_parent_pid_field">ParentProcessId</set>
+    <set token="pt_pid_field">ProcessId</set>
+    <set token="pt_command_line_field">CommandLine</set>
+    <set token="pt_user_field">User</set>
+    <set token="mapping_ready">true</set>
+  </init>
+  <fieldset submitButton="true" autoRun="false">
+    <input type="time" token="time" searchWhenChanged="false">
+      <label>Time range</label>
+      <default>
+        <earliest>0</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+    <input type="dropdown" token="data_index" searchWhenChanged="false">
+      <label>Index</label>
+      <default>botsv3</default>
+      <fieldForLabel>index</fieldForLabel>
+      <fieldForValue>index</fieldForValue>
+      <search>
+        <query>| rest splunk_server=local count=0 /services/data/indexes | search disabled=0 isInternal=0 | rename title as index | fields index | where NOT match(index,"(?i)(^_|audit)") | sort 0 index | head 200</query>
+        <earliest>-5m</earliest>
+        <latest>now</latest>
+      </search>
+
+    </input>
+    <input type="dropdown" token="data_sourcetype" searchWhenChanged="false">
+      <label>Sourcetype</label>
+      <default>XmlWinEventLog</default>
+      <fieldForLabel>sourcetype</fieldForLabel>
+      <fieldForValue>sourcetype</fieldForValue>
+      <search>
+        <query>index=$data_index|s$ | stats count by sourcetype | sort 0 - count | head 200</query>
+        <earliest>$time.earliest$</earliest>
+        <latest>$time.latest$</latest>
+      </search>
+
+    </input>
+    <input type="dropdown" token="data_source" searchWhenChanged="false">
+      <label>Source</label>
+      <default>WinEventLog:Microsoft-Windows-Sysmon/Operational</default>
+      <fieldForLabel>source</fieldForLabel>
+      <fieldForValue>source</fieldForValue>
+      <search>
+        <query>index=$data_index|s$ sourcetype=$data_sourcetype|s$ | stats count by source | sort 0 - count | head 500</query>
+        <earliest>$time.earliest$</earliest>
+        <latest>$time.latest$</latest>
+      </search>
+
+    </input>
+    <input type="dropdown" token="data_eventcode" searchWhenChanged="false">
+      <label>EventCode</label>
+      <default>1</default>
+      <fieldForLabel>EventCode</fieldForLabel>
+      <fieldForValue>EventCode</fieldForValue>
+      <search>
+        <query>index=$data_index|s$ sourcetype=$data_sourcetype|s$ source=$data_source|s$ | stats count by EventCode | sort 0 - count | head 500</query>
+        <earliest>$time.earliest$</earliest>
+        <latest>$time.latest$</latest>
+      </search>
+
+    </input>
+    <input type="dropdown" token="schema_mode" searchWhenChanged="true">
+      <label>Process schema</label>
+      <choice value="sysmon">Sysmon EventCode 1</choice>
+      <choice value="security4688">Windows Security 4688</choice>
+      <choice value="custom">Custom field mapping</choice>
+      <default>sysmon</default>
+      <change>
+        <condition value="sysmon">
+          <set token="pt_parent_image_field">ParentImage</set>
+          <set token="pt_image_field">Image</set>
+          <set token="pt_parent_pid_field">ParentProcessId</set>
+          <set token="pt_pid_field">ProcessId</set>
+          <set token="pt_command_line_field">CommandLine</set>
+          <set token="pt_user_field">User</set>
+          <set token="mapping_ready">true</set>
+          <unset token="custom_mapping"/>
+        </condition>
+        <condition value="security4688">
+          <set token="pt_parent_image_field">Creator_Process_Name</set>
+          <set token="pt_image_field">New_Process_Name</set>
+          <set token="pt_parent_pid_field">Creator_Process_ID</set>
+          <set token="pt_pid_field">New_Process_ID</set>
+          <set token="pt_command_line_field">Process_Command_Line</set>
+          <set token="pt_user_field">SubjectUserName</set>
+          <set token="mapping_ready">true</set>
+          <unset token="custom_mapping"/>
+        </condition>
+        <condition value="custom">
+          <unset token="mapping_ready"/>
+          <set token="custom_mapping">true</set>
+        </condition>
+      </change>
+    </input>
+    <input type="dropdown" token="host" searchWhenChanged="false">
+      <label>Host</label>
+      <default>BSTOLL-L</default>
+      <fieldForLabel>host</fieldForLabel>
+      <fieldForValue>host</fieldForValue>
+      <search>
+        <query>index=$data_index|s$ sourcetype=$data_sourcetype|s$ source=$data_source|s$ EventCode=$data_eventcode|s$ | stats count by host | sort 0 host | head 100</query>
+        <earliest>$time.earliest$</earliest>
+        <latest>$time.latest$</latest>
+      </search>
+    </input>
+    <input type="dropdown" token="root_guid" searchWhenChanged="false">
+      <label>Root process entity</label>
+      <choice value="*">All parent processes</choice>
+      <default>*</default>
+      <fieldForLabel>root_label</fieldForLabel>
+      <fieldForValue>pt_entity</fieldForValue>
+      <search>
+        <query>index=$data_index|s$ sourcetype=$data_sourcetype|s$ source=$data_source|s$ EventCode=$data_eventcode|s$
+$filter_spl$
+| eval pt_parent_image='$pt_parent_image_field$', pt_image='$pt_image_field$', pt_parent_pid='$pt_parent_pid_field$', pt_pid='$pt_pid_field$', pt_command_line=coalesce('$pt_command_line_field$',""), pt_user=coalesce('$pt_user_field$',"")
+| eval pt_parent_entity=coalesce(ParentProcessGuid,tostring(pt_parent_pid)), pt_entity=coalesce(ProcessGuid,tostring(pt_pid))
+| search host=$host|s$
+| stats earliest(_time) as first_seen latest(pt_image) as pt_image latest(pt_pid) as pt_pid by pt_entity
+| eval root_label=replace(pt_image,"^.*\\\\","")." (PID ".pt_pid.")"
+| sort 0 first_seen
+| head 100</query>
+        <earliest>$time.earliest$</earliest>
+        <latest>$time.latest$</latest>
+      </search>
+    </input>
+    <input type="text" token="process_filter" searchWhenChanged="false">
+      <label>Process path filter</label>
+      <default>*</default>
+    </input>
+    <input type="dropdown" token="min_count" searchWhenChanged="false">
+      <label>Minimum repeated edges</label>
+      <choice value="1">1+</choice>
+      <choice value="2">2+</choice>
+      <choice value="5">5+</choice>
+      <choice value="10">10+</choice>
+      <default>1</default>
+    </input>
+    <input type="dropdown" token="node_mode" searchWhenChanged="false">
+      <label>Node detail</label>
+      <choice value="application">Application</choice>
+      <choice value="pid">Application + PID</choice>
+      <default>application</default>
+    </input>
+    <input type="dropdown" token="pstree_pid" searchWhenChanged="false">
+      <label>Process tree PID</label>
+      <choice value="__select__">Select a PID</choice>
+      <default>__select__</default>
+      <fieldForLabel>pid_label</fieldForLabel>
+      <fieldForValue>pt_pid</fieldForValue>
+      <search>
+        <query>index=$data_index|s$ sourcetype=$data_sourcetype|s$ source=$data_source|s$ EventCode=$data_eventcode|s$
+$filter_spl$
+| eval pt_parent_image='$pt_parent_image_field$', pt_image='$pt_image_field$', pt_parent_pid='$pt_parent_pid_field$', pt_pid='$pt_pid_field$', pt_command_line=coalesce('$pt_command_line_field$',""), pt_user=coalesce('$pt_user_field$',"")
+| eval pt_parent_entity=coalesce(ParentProcessGuid,tostring(pt_parent_pid)), pt_entity=coalesce(ProcessGuid,tostring(pt_pid))
+| search host=$host|s$
+| stats earliest(_time) as first_seen latest(pt_image) as pt_image latest(pt_entity) as pt_entity by pt_pid
+| eval process_name=replace(pt_image,"^.*\\\\","")
+| eval pid_label=process_name." (PID ".pt_pid.") · ".strftime(first_seen,"%Y-%m-%d %H:%M:%S")
+| sort 0 first_seen
+| head 1000</query>
+        <earliest>$time.earliest$</earliest>
+        <latest>$time.latest$</latest>
+      </search>
+      <change>
+        <condition value="__select__">
+          <unset token="show_pstree"/>
+        </condition>
+        <condition>
+          <set token="show_pstree">true</set>
+        </condition>
+      </change>
+    </input>
+    <input type="text" token="pstree_hunt" searchWhenChanged="false">
+      <label>Tree contains</label>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <html>
+        <div id="process-tree-filter-shell" class="pt-editor-shell">
+          <div class="pt-editor-header">
+            <label class="pt-editor-label" for="process-tree-base-spl">Optional filter SPL</label>
+            <button id="process-tree-toggle-spl" class="pt-button pt-button-compact" type="button" aria-controls="process-tree-filter-body" aria-expanded="true">Collapse</button>
+          </div>
+          <div id="process-tree-filter-body">
+            <textarea id="process-tree-base-spl" aria-describedby="process-tree-editor-status"></textarea>
+            <div class="pt-editor-actions">
+              <button id="process-tree-apply-spl" class="pt-button pt-button-primary" type="button">Apply SPL</button>
+              <button id="process-tree-reset-spl" class="pt-button" type="button">Reset</button>
+              <span id="process-tree-editor-status" class="pt-editor-status" role="status"></span>
+            </div>
+          </div>
+        </div>
+      </html>
+    </panel>
+  </row>
+  <row>
+    <panel id="custom_mapping_panel" depends="$custom_mapping$">
+      <html>
+        <div class="pt-editor-shell pt-custom-mapping">
+          <label class="pt-editor-label" for="custom-parent-image">Parent process name/path field</label>
+          <input id="custom-parent-image" type="text" value="ParentImage"/>
+          <label class="pt-editor-label" for="custom-image">Child process name/path field</label>
+          <input id="custom-image" type="text" value="Image"/>
+          <label class="pt-editor-label" for="custom-parent-pid">Parent PID field</label>
+          <input id="custom-parent-pid" type="text" value="ParentProcessId"/>
+          <label class="pt-editor-label" for="custom-pid">Child PID field</label>
+          <input id="custom-pid" type="text" value="ProcessId"/>
+          <label class="pt-editor-label" for="custom-command-line">Command-line field</label>
+          <input id="custom-command-line" type="text" value="CommandLine"/>
+          <label class="pt-editor-label" for="custom-user">User field</label>
+          <input id="custom-user" type="text" value="User"/>
+          <div class="pt-editor-actions">
+            <button id="apply-custom-mapping" class="pt-button pt-button-primary" type="button">Apply Custom Mapping</button>
+            <span id="custom-mapping-status" class="pt-editor-status" role="status"></span>
+          </div>
+        </div>
+      </html>
+    </panel>
+  </row>
+  <row>
+    <panel id="pstree_selected_panel" depends="$mapping_ready$,$show_pstree$">
+      <title>Selected PID Process Tree</title>
+      <table>
+        <search>
+          <query>index=$data_index|s$ sourcetype=$data_sourcetype|s$ source=$data_source|s$ EventCode=$data_eventcode|s$
+$filter_spl$
+| eval pt_parent_image='$pt_parent_image_field$', pt_image='$pt_image_field$', pt_parent_pid='$pt_parent_pid_field$', pt_pid='$pt_pid_field$', pt_command_line=coalesce('$pt_command_line_field$',""), pt_user=coalesce('$pt_user_field$',"")
+| eval pt_parent_entity=coalesce(ParentProcessGuid,tostring(pt_parent_pid)), pt_entity=coalesce(ProcessGuid,tostring(pt_pid))
+| search host=$host|s$
+| where isnotnull(pt_parent_image) AND isnotnull(pt_image) AND isnotnull(pt_parent_pid) AND isnotnull(pt_pid)
+| sort 0 _time
+| eval parent=replace(pt_parent_image,"^.*\\\\","")." (PID ".pt_parent_pid.")"
+| eval child=replace(pt_image,"^.*\\\\","")." (PID ".pt_pid.")"
+| eval detail=strftime(_time,"%Y-%m-%d %H:%M:%S")." ".pt_command_line
+| fields child parent detail
+| pstree child=child parent=parent detail=detail spaces=50
+| where mvfind(tree,"\\(PID ".$pstree_pid|s$."\\)")&gt;=0
+| table tree</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">10</option>
+        <option name="drilldown">none</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel id="pstree_content_hunt_panel" depends="$mapping_ready$,$pstree_hunt$">
+      <title>Process Tree Content Hunt</title>
+      <table>
+        <search>
+          <query>index=$data_index|s$ sourcetype=$data_sourcetype|s$ source=$data_source|s$ EventCode=$data_eventcode|s$
+$filter_spl$
+| eval pt_parent_image='$pt_parent_image_field$', pt_image='$pt_image_field$', pt_parent_pid='$pt_parent_pid_field$', pt_pid='$pt_pid_field$', pt_command_line=coalesce('$pt_command_line_field$',""), pt_user=coalesce('$pt_user_field$',"")
+| eval pt_parent_entity=coalesce(ParentProcessGuid,tostring(pt_parent_pid)), pt_entity=coalesce(ProcessGuid,tostring(pt_pid))
+| search host=$host|s$
+| where isnotnull(pt_parent_image) AND isnotnull(pt_image) AND isnotnull(pt_parent_pid) AND isnotnull(pt_pid)
+| sort 0 _time
+| eval parent=replace(pt_parent_image,"^.*\\\\","")." (PID ".pt_parent_pid.")"
+| eval child=replace(pt_image,"^.*\\\\","")." (PID ".pt_pid.")"
+| eval detail=strftime(_time,"%Y-%m-%d %H:%M:%S")." ".pt_command_line
+| fields child parent detail
+| pstree child=child parent=parent detail=detail spaces=50
+| where like(lower(mvjoin(tree,"\n")),"%".lower($pstree_hunt|s$)."%")
+| head 3
+| eval tree=mvindex(tree,0,199)
+| table tree</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">10</option>
+        <option name="drilldown">none</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$mapping_ready$">
+      <title>Process Events Over Time</title>
+      <chart>
+        <search>
+          <query>index=$data_index|s$ sourcetype=$data_sourcetype|s$ source=$data_source|s$ EventCode=$data_eventcode|s$
+$filter_spl$
+| eval pt_parent_image='$pt_parent_image_field$', pt_image='$pt_image_field$', pt_parent_pid='$pt_parent_pid_field$', pt_pid='$pt_pid_field$', pt_command_line=coalesce('$pt_command_line_field$',""), pt_user=coalesce('$pt_user_field$',"")
+| eval pt_parent_entity=coalesce(ParentProcessGuid,tostring(pt_parent_pid)), pt_entity=coalesce(ProcessGuid,tostring(pt_pid))
+| search host=$host|s$ pt_parent_entity=$root_guid|s$ (pt_image=$process_filter|s$ OR pt_parent_image=$process_filter|s$)
+| eval child_name=replace(pt_image,"^.*\\\\","")
+| eventstats count as edge_count by pt_parent_image pt_image
+| where edge_count&gt;=tonumber($min_count|s$)
+| timechart span=1h cont=false count as events by child_name limit=10 useother=true</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="charting.chart">line</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="charting.axisTitleX.text">Time</option>
+        <option name="charting.axisTitleY.text">Process create events</option>
+        <option name="charting.chart.nullValueMode">zero</option>
+        <option name="height">360</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$mapping_ready$">
+      <title>Sankey Process Flow</title>
+      <viz type="sankey_diagram_app.sankey_diagram">
+        <search>
+          <query>index=$data_index|s$ sourcetype=$data_sourcetype|s$ source=$data_source|s$ EventCode=$data_eventcode|s$
+$filter_spl$
+| eval pt_parent_image='$pt_parent_image_field$', pt_image='$pt_image_field$', pt_parent_pid='$pt_parent_pid_field$', pt_pid='$pt_pid_field$', pt_command_line=coalesce('$pt_command_line_field$',""), pt_user=coalesce('$pt_user_field$',"")
+| eval pt_parent_entity=coalesce(ParentProcessGuid,tostring(pt_parent_pid)), pt_entity=coalesce(ProcessGuid,tostring(pt_pid))
+| search host=$host|s$ pt_parent_entity=$root_guid|s$ (pt_image=$process_filter|s$ OR pt_parent_image=$process_filter|s$)
+| eval parent_name=replace(pt_parent_image,"^.*\\\\","")
+| eval child_name=replace(pt_image,"^.*\\\\","")
+| eval source=if($node_mode|s$="pid",parent_name." (PID ".pt_parent_pid.")",parent_name)
+| eval target=if($node_mode|s$="pid",child_name." (PID ".pt_pid.")",child_name)
+| stats count as value by source target
+| where value&gt;=tonumber($min_count|s$)
+| sort 0 - value
+| head 80
+| table source target value</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="height">520</option>
+      </viz>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$mapping_ready$">
+      <title>Force Directed Process Relationships</title>
+      <viz type="force_directed_viz.force_directed">
+        <search>
+          <query>index=$data_index|s$ sourcetype=$data_sourcetype|s$ source=$data_source|s$ EventCode=$data_eventcode|s$
+$filter_spl$
+| eval pt_parent_image='$pt_parent_image_field$', pt_image='$pt_image_field$', pt_parent_pid='$pt_parent_pid_field$', pt_pid='$pt_pid_field$', pt_command_line=coalesce('$pt_command_line_field$',""), pt_user=coalesce('$pt_user_field$',"")
+| eval pt_parent_entity=coalesce(ParentProcessGuid,tostring(pt_parent_pid)), pt_entity=coalesce(ProcessGuid,tostring(pt_pid))
+| search host=$host|s$ pt_parent_entity=$root_guid|s$ (pt_image=$process_filter|s$ OR pt_parent_image=$process_filter|s$)
+| eval parent_name=replace(pt_parent_image,"^.*\\\\","")
+| eval child_name=replace(pt_image,"^.*\\\\","")
+| eval src_ip=if($node_mode|s$="pid",parent_name." (PID ".pt_parent_pid.")",parent_name)
+| eval dest_ip=if($node_mode|s$="pid",child_name." (PID ".pt_pid.")",child_name)
+| stats count by src_ip dest_ip
+| where count&gt;=tonumber($min_count|s$)
+| sort 0 - count
+| head 80
+| table src_ip dest_ip count</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="height">620</option>
+      </viz>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$mapping_ready$">
+      <title>Process Edges</title>
+      <table>
+        <search>
+          <query>index=$data_index|s$ sourcetype=$data_sourcetype|s$ source=$data_source|s$ EventCode=$data_eventcode|s$
+$filter_spl$
+| eval pt_parent_image='$pt_parent_image_field$', pt_image='$pt_image_field$', pt_parent_pid='$pt_parent_pid_field$', pt_pid='$pt_pid_field$', pt_command_line=coalesce('$pt_command_line_field$',""), pt_user=coalesce('$pt_user_field$',"")
+| eval pt_parent_entity=coalesce(ParentProcessGuid,tostring(pt_parent_pid)), pt_entity=coalesce(ProcessGuid,tostring(pt_pid))
+| search host=$host|s$ pt_parent_entity=$root_guid|s$ (pt_image=$process_filter|s$ OR pt_parent_image=$process_filter|s$)
+| eval parent_name=replace(pt_parent_image,"^.*\\\\","")
+| eval child_name=replace(pt_image,"^.*\\\\","")
+| eval parent_process=if($node_mode|s$="pid",parent_name." (PID ".pt_parent_pid.")",parent_name)
+| eval child_process=if($node_mode|s$="pid",child_name." (PID ".pt_pid.")",child_name)
+| eventstats count as edge_count by pt_parent_image pt_image
+| where edge_count&gt;=tonumber($min_count|s$)
+| eval lineage_key=lower(pt_parent_entity)." -&gt; ".lower(pt_entity)
+| table _time parent_process child_process edge_count pt_user pt_command_line lineage_key
+| sort 0 _time
+| head 80</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">20</option>
+        <option name="drilldown">none</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+</form>

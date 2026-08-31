@@ -1,0 +1,37 @@
+name: Validate Process Tree Lab
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run Python contracts
+        run: python3 -m unittest tools.process_tree.test_app_contracts tools.process_tree.test_verify_and_package -q
+
+      - name: Run JavaScript contracts
+        run: node tools/process_tree/test_process_tree_editor.js
+
+      - name: Check JavaScript syntax
+        run: node --check apps/spl_process_tree_lab/appserver/static/js/process_tree_104.js
+
+      - name: Run optimized package verifier
+        run: python3 -O tools/process_tree/verify_and_package.py

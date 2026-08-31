@@ -1,0 +1,33 @@
+# Secrets and credentials
+.env
+*.env
+.env.*
+secrets/
+*.token
+*.key
+*.pem
+*.p12
+*.pfx
+*credential*
+*credentials*
+
+# Python, Node, and macOS noise
+__pycache__/
+.pytest_cache/
+node_modules/
+.DS_Store
+*.pyc
+*.log
+*.tmp
+
+# Raw or generated data
+/raw-data/
+/data/
+/datasets/
+/exports/
+*.tgz
+*.tar.gz
+
+# Deterministic local package outputs
+apps/_packages/
+apps/_reports/
